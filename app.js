@@ -63,10 +63,20 @@ fetch('./levels.json')
   .then(data => {
     levels = data;
     initEvents();
-    const savedIdx = localStorage.getItem('picross_last_level');
-    if (savedIdx !== null && !isNaN(savedIdx) && savedIdx < levels.length) {
-      currentLevelIdx = parseInt(savedIdx);
+
+    // 取得所有已通關的關卡列表
+    const completedLevels = JSON.parse(localStorage.getItem('picross_completed') || '[]');
+
+    // 尋找第一個未通關的關卡索引
+    let firstUnclearedIdx = levels.findIndex(lvl => !completedLevels.includes(lvl.id));
+
+    // 如果全部都通關了，就停留在最後一關；否則載入最新未通關關卡
+    if (firstUnclearedIdx === -1) {
+      currentLevelIdx = levels.length - 1;
+    } else {
+      currentLevelIdx = firstUnclearedIdx;
     }
+
     loadLevel(currentLevelIdx);
   })
   .catch(err => {
@@ -76,9 +86,14 @@ fetch('./levels.json')
 
 function loadLevel(idx) {
   const level = levels[idx];
-  levelTitleEl.innerText = `${level.title} (${idx + 1}/${levels.length})`;
-  statusMsg.innerText = '';
-  statusMsg.className = '';
+  const completedLevels = JSON.parse(localStorage.getItem('picross_completed') || '[]');
+  const isPassed = completedLevels.includes(level.id);
+
+  // 顯示標題，若已通關則加上 🌟 標記
+  levelTitleEl.innerText = `${isPassed ? '🌟 ' : ''}${level.title} (${idx + 1}/${levels.length})`;
+  statusMsg.innerText = isPassed ? '（此關卡已通關）' : '';
+  statusMsg.className = isPassed ? 'win' : '';
+
   isGameOver = false;
   lives = 5;
   updateLivesDisplay();
@@ -266,7 +281,6 @@ function updateCellVisual(el, state) {
 
 function saveProgress(levelId) {
   localStorage.setItem(`picross_save_${levelId}`, JSON.stringify(playerGrid));
-  localStorage.setItem('picross_last_level', currentLevelIdx);
 }
 
 function checkWin(level) {
@@ -277,6 +291,15 @@ function checkWin(level) {
       if (isFilled !== level.grid[r][c]) return;
     }
   }
+
+  // 紀錄通關狀態
+  const completedLevels = JSON.parse(localStorage.getItem('picross_completed') || '[]');
+  if (!completedLevels.includes(level.id)) {
+    completedLevels.push(level.id);
+    localStorage.setItem('picross_completed', JSON.stringify(completedLevels));
+  }
+
+  levelTitleEl.innerText = `🌟 ${level.title} (${currentLevelIdx + 1}/${levels.length})`;
   statusMsg.innerText = '🎉 恭喜過關！ (SUCCESS)';
   statusMsg.className = 'win';
 }
