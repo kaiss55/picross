@@ -16,9 +16,14 @@
       <button id="next-btn">▶</button>
     </header>
 
-    <div class="controls-top">
-      <button id="mode-btn" class="active-fill">當前模式：填滿 (FILL)</button>
+    <div class="status-bar">
+      <div id="lives-container">生命: ❤️❤️❤️❤️❤️</div>
       <button id="reset-btn">重置</button>
+    </div>
+
+    <div class="controls-top">
+      <button id="mode-fill" class="mode-btn active">■ 塗黑</button>
+      <button id="mode-cross" class="mode-btn">❌ 標記</button>
     </div>
 
     <main id="game-container">
@@ -30,12 +35,9 @@
 
   <script src="app.js"></script>
   <script>
-    // 註冊 Service Worker 以實現 100% 離線遊玩
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('SW 註冊成功！'))
-          .catch(err => console.log('SW 註冊失敗:', err));
+        navigator.serviceWorker.register('./sw.js');
       });
     }
   </script>
