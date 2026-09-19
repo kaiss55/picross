@@ -4,17 +4,30 @@ body { font-family: sans-serif; background: #222; color: #fff; margin: 0; paddin
 header { display: flex; justify-content: space-between; align-items: center; }
 header button { font-size: 20px; padding: 5px 15px; }
 
-.controls-top { margin: 15px 0; display: flex; justify-content: space-around; }
-.controls-top button { padding: 12px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; }
-#mode-btn.active-fill { background: #4CAF50; color: white; }
-#mode-btn.active-cross { background: #f44336; color: white; }
+.status-bar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; padding: 0 10px; }
+#lives-container { font-size: 18px; color: #ff4d4d; font-weight: bold; }
+
+.controls-top { margin: 10px 0; display: flex; justify-content: center; gap: 15px; }
+.mode-btn { padding: 12px 25px; font-size: 16px; border: 2px solid #555; background: #333; color: white; border-radius: 8px; cursor: pointer; }
+.mode-btn.active#mode-fill { background: #4CAF50; border-color: #4CAF50; }
+.mode-btn.active#mode-cross { background: #f44336; border-color: #f44336; }
 
 #game-container { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
 #board { display: grid; gap: 2px; background: #555; padding: 5px; border-radius: 4px; }
 
-.cell { width: 45px; height: 45px; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #333; font-size: 14px; }
+.cell { display: flex; align-items: center; justify-content: center; font-weight: bold; color: #333; font-size: 12px; background: #fff; }
 .cell.header { background: #ddd; }
 .cell.filled { background: #333; }
-.cell.cross::after { content: '❌'; font-size: 18px; }
+.cell.cross::after { content: '❌'; font-size: 14px; }
+.cell.error { background: #ff4d4d !important; animation: shake 0.2s; }
 
-#status-msg { margin-top: 15px; font-size: 18px; font-weight: bold; color: #ffeb3b; }
+#status-msg { margin-top: 15px; font-size: 20px; font-weight: bold; }
+#status-msg.win { color: #4caf50; }
+#status-msg.lose { color: #f44336; }
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
