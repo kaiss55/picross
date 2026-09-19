@@ -1,12 +1,12 @@
 let levels = [];
 let currentLevelIdx = 0;
 let currentMode = 'FILL'; // 'FILL' (塗黑) 或 'CROSS' (標❌)
-let playerGrid = [];
+let playerGrid = []; // 0: 空白, 1: 塗黑, 2: 標❌
 let lives = 5;
 let isGameOver = false;
 
-// 滑動狀態
 let isMouseDown = false;
+let lastTouchedCell = null;
 
 const boardEl = document.getElementById('board');
 const levelTitleEl = document.getElementById('level-title');
@@ -14,17 +14,64 @@ const modeFillBtn = document.getElementById('mode-fill');
 const modeCrossBtn = document.getElementById('mode-cross');
 const livesContainer = document.getElementById('lives-container');
 const statusMsg = document.getElementById('status-msg');
+const resetBtn = document.getElementById('reset-btn');
+const prevBtn = document.getElementById('prev-btn');
+const nextBtn = document.getElementById('next-btn');
 
-window.addEventListener('mouseup', () => { isMouseDown = false; });
-window.addEventListener('touchend', () => { isMouseDown = false; });
+// 初始化事件監聽
+function initEvents() {
+  window.addEventListener('mouseup', () => { isMouseDown = false; lastTouchedCell = null; });
+  window.addEventListener('touchend', () => { isMouseDown = false; lastTouchedCell = null; });
 
+  modeFillBtn.addEventListener('click', () => {
+    currentMode = 'FILL';
+    modeFillBtn.classList.add('active');
+    modeCrossBtn.classList.remove('active');
+  });
+
+  modeCrossBtn.addEventListener('click', () => {
+    currentMode = 'CROSS';
+    modeCrossBtn.classList.add('active');
+    modeFillBtn.classList.remove('active');
+  });
+
+  prevBtn.addEventListener('click', () => {
+    if (currentLevelIdx > 0) {
+      currentLevelIdx--;
+      loadLevel(currentLevelIdx);
+    }
+  });
+
+  nextBtn.addEventListener('click', () => {
+    if (currentLevelIdx < levels.length - 1) {
+      currentLevelIdx++;
+      loadLevel(currentLevelIdx);
+    }
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (levels.length === 0) return;
+    const level = levels[currentLevelIdx];
+    localStorage.removeItem(`picross_save_${level.id}`);
+    loadLevel(currentLevelIdx);
+  });
+}
+
+// 載入關卡資料
 fetch('./levels.json')
   .then(res => res.json())
   .then(data => {
     levels = data;
+    initEvents();
     const savedIdx = localStorage.getItem('picross_last_level');
-    if (savedIdx !== null) currentLevelIdx = parseInt(savedIdx);
+    if (savedIdx !== null && !isNaN(savedIdx) && savedIdx < levels.length) {
+      currentLevelIdx = parseInt(savedIdx);
+    }
     loadLevel(currentLevelIdx);
+  })
+  .catch(err => {
+    console.error("載入關卡失敗:", err);
+    statusMsg.innerText = "關卡資料載入失敗！";
   });
 
 function loadLevel(idx) {
@@ -40,7 +87,11 @@ function loadLevel(idx) {
   
   const savedBoard = localStorage.getItem(`picross_save_${level.id}`);
   if (savedBoard) {
-    playerGrid = JSON.parse(savedBoard);
+    try {
+      playerGrid = JSON.parse(savedBoard);
+    } catch(e) {
+      console.error(e);
+    }
   }
 
   renderBoard(level);
@@ -67,7 +118,7 @@ function getClues(line) {
 
 function renderBoard(level) {
   const size = level.size;
-  const cellSize = size > 10 ? '30px' : size > 5 ? '38px' : '45px';
+  const cellSize = size > 10 ? '28px' : size > 5 ? '36px' : '44px';
   
   boardEl.style.gridTemplateColumns = `repeat(${size + 1}, ${cellSize})`;
   boardEl.innerHTML = '';
@@ -80,10 +131,10 @@ function renderBoard(level) {
     colClues.push(getClues(col));
   }
 
-  // 左上角
+  // 左上角空白格
   boardEl.appendChild(createCell('', 'header', cellSize));
 
-  // 頂部 Clues
+  // 頂部 數字提示
   for (let c = 0; c < size; c++) {
     boardEl.appendChild(createCell(colClues[c].join('\n'), 'header', cellSize));
   }
@@ -99,7 +150,7 @@ function renderBoard(level) {
       updateCellVisual(cellEl, playerGrid[r][c]);
 
       const handleAction = (e) => {
-        if (e) e.preventDefault();
+        if (e && e.cancelable) e.preventDefault();
         if (isGameOver) return;
         applyUserAction(r, c, cellEl, level);
       };
@@ -108,20 +159,23 @@ function renderBoard(level) {
         isMouseDown = true;
         handleAction(e);
       });
+
       cellEl.addEventListener('mouseenter', () => {
-        if (isMouseDown) handleAction(null);
+        if (isMouseDown) {
+          applyUserAction(r, c, cellEl, level);
+        }
       });
 
       cellEl.addEventListener('touchstart', (e) => {
         isMouseDown = true;
         handleAction(e);
-      });
+      }, { passive: false });
 
       boardEl.appendChild(cellEl);
     }
   }
 
-  // TouchMove 支援
+  // TouchMove 支援 (手機滑動繪製)
   boardEl.ontouchmove = (e) => {
     if (!isMouseDown || isGameOver) return;
     const touch = e.touches[0];
@@ -129,38 +183,49 @@ function renderBoard(level) {
     if (targetEl && targetEl.classList.contains('playable')) {
       const r = parseInt(targetEl.dataset.r);
       const c = parseInt(targetEl.dataset.c);
-      applyUserAction(r, c, targetEl, level);
+      const cellKey = `${r}-${c}`;
+      if (lastTouchedCell !== cellKey) {
+        lastTouchedCell = cellKey;
+        applyUserAction(r, c, targetEl, level);
+      }
     }
   };
 }
 
 function applyUserAction(r, c, cellEl, level) {
-  // 如果已經確定正確（填滿或劃叉），就不再觸發
-  if (playerGrid[r][c] !== 0) return;
+  const currentState = playerGrid[r][c];
+  const targetAnswer = level.grid[r][c];
 
-  const correctAnswer = level.grid[r][c]; // 1 代表應該黑，0 代表應該白/叉
-
+  // 1. 如果玩家在【塗黑模式】
   if (currentMode === 'FILL') {
-    if (correctAnswer === 1) {
-      // 答對：變黑
-      playerGrid[r][c] = 1;
-      updateCellVisual(cellEl, 1);
+    if (currentState === 1) {
+      // 已經塗黑，取消塗黑
+      playerGrid[r][c] = 0;
+      updateCellVisual(cellEl, 0);
     } else {
-      // 答錯：扣血，並自動填上 ❌
-      triggerError(cellEl);
-      playerGrid[r][c] = 2; // 強制修正為 ❌
-      updateCellVisual(cellEl, 2);
+      // 欲進行塗黑動作
+      if (targetAnswer === 1) {
+        // 正確：填黑
+        playerGrid[r][c] = 1;
+        updateCellVisual(cellEl, 1);
+      } else {
+        // 錯誤：扣血，並自動填❌提示錯了
+        triggerError(cellEl);
+        playerGrid[r][c] = 2; 
+        updateCellVisual(cellEl, 2);
+      }
     }
-  } else if (currentMode === 'CROSS') {
-    if (correctAnswer === 0) {
-      // 答對：標 ❌
+  } 
+  // 2. 如果玩家在【標記❌模式】
+  else if (currentMode === 'CROSS') {
+    if (currentState === 2) {
+      // 已經標記 ❌，取消標記
+      playerGrid[r][c] = 0;
+      updateCellVisual(cellEl, 0);
+    } else if (currentState === 0) {
+      // 標記 ❌
       playerGrid[r][c] = 2;
       updateCellVisual(cellEl, 2);
-    } else {
-      // 答錯：扣血，並自動塗黑
-      triggerError(cellEl);
-      playerGrid[r][c] = 1; // 強制修正為 黑色
-      updateCellVisual(cellEl, 1);
     }
   }
 
@@ -172,9 +237,9 @@ function triggerError(cellEl) {
   lives--;
   updateLivesDisplay();
   
-  // 震動動畫效果
+  // 錯誤紅光與震動效果
   cellEl.classList.add('error');
-  setTimeout(() => cellEl.classList.remove('error'), 300);
+  setTimeout(() => cellEl.classList.remove('error'), 400);
 
   if (lives <= 0) {
     isGameOver = true;
@@ -215,28 +280,3 @@ function checkWin(level) {
   statusMsg.innerText = '🎉 恭喜過關！ (SUCCESS)';
   statusMsg.className = 'win';
 }
-
-// 模式切換按鈕
-modeFillBtn.addEventListener('click', () => {
-  currentMode = 'FILL';
-  modeFillBtn.classList.add('active');
-  modeCrossBtn.classList.remove('active');
-});
-
-modeCrossBtn.addEventListener('click', () => {
-  currentMode = 'CROSS';
-  modeCrossBtn.classList.add('active');
-  modeFillBtn.classList.remove('active');
-});
-
-document.getElementById('prev-btn').addEventListener('click', () => {
-  if (currentLevelIdx > 0) { currentLevelIdx--; loadLevel(currentLevelIdx); }
-});
-document.getElementById('next-btn').addEventListener('click', () => {
-  if (currentLevelIdx < levels.length - 1) { currentLevelIdx++; loadLevel(currentLevelIdx); }
-});
-document.getElementById('reset-btn').addEventListener('click', () => {
-  const level = levels[currentLevelIdx];
-  localStorage.removeItem(`picross_save_${level.id}`);
-  loadLevel(currentLevelIdx);
-});
