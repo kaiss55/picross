@@ -1,0 +1,15 @@
+{
+  "name": "Picross 100",
+  "short_name": "Picross",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#222222",
+  "theme_color": "#333333",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

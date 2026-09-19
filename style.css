@@ -1,0 +1,20 @@
+* { box-sizing: border-box; touch-action: manipulation; user-select: none; }
+body { font-family: sans-serif; background: #222; color: #fff; margin: 0; padding: 10px; display: flex; justify-content: center; }
+#app { width: 100%; max-width: 600px; text-align: center; }
+header { display: flex; justify-content: space-between; align-items: center; }
+header button { font-size: 20px; padding: 5px 15px; }
+
+.controls-top { margin: 15px 0; display: flex; justify-content: space-around; }
+.controls-top button { padding: 12px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; }
+#mode-btn.active-fill { background: #4CAF50; color: white; }
+#mode-btn.active-cross { background: #f44336; color: white; }
+
+#game-container { display: flex; justify-content: center; margin-top: 10px; overflow-x: auto; }
+#board { display: grid; gap: 2px; background: #555; padding: 5px; border-radius: 4px; }
+
+.cell { width: 45px; height: 45px; background: #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #333; font-size: 14px; }
+.cell.header { background: #ddd; }
+.cell.filled { background: #333; }
+.cell.cross::after { content: '❌'; font-size: 18px; }
+
+#status-msg { margin-top: 15px; font-size: 18px; font-weight: bold; color: #ffeb3b; }
